@@ -27,7 +27,7 @@ public class RegisterUserActivity extends AppCompatActivity {
 
     private static final String TAG = "TAG";
 
-    private FirebaseAuth mAuth;
+    private FirebaseAuth mAuth = FirebaseAuth.getInstance();
     protected FirebaseUser user;
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -60,8 +60,6 @@ public class RegisterUserActivity extends AppCompatActivity {
         registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                progressBar.setVisibility(View.VISIBLE);
-
                 registerUser();
             }
         });
@@ -80,13 +78,14 @@ public class RegisterUserActivity extends AppCompatActivity {
 
                         progressBar.setVisibility(View.GONE);
                         startActivity(new Intent(RegisterUserActivity.this, MainActivity.class));
+                        finish();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-
                         progressBar.setVisibility(View.GONE);
+
                         Log.d(TAG, "DATABASE FAILURE onFailure: " + e.toString());
                     }
                 });
@@ -102,10 +101,13 @@ public class RegisterUserActivity extends AppCompatActivity {
                 Toast.makeText(this, "Passwords don't match", Toast.LENGTH_LONG).show();
                 Log.d(TAG, "registerUser: Password don't match");
             } else {
+                progressBar.setVisibility(View.VISIBLE);
+
                 mAuth.createUserWithEmailAndPassword(usernameEditText.getText().toString() + "@test.com", passwordEditText.getText().toString())
                         .addOnSuccessListener(new OnSuccessListener<AuthResult>() {
                             @Override
                             public void onSuccess(AuthResult authResult) {
+                                mAuth = FirebaseAuth.getInstance();
                                 user = mAuth.getCurrentUser();
 
                                 makeDatabaseChild();
