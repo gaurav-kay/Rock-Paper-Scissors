@@ -1,0 +1,56 @@
+{
+  "project_info": {
+    "project_number": "367143592058",
+    "firebase_url": "https://rockpaperscissors-7e432.firebaseio.com",
+    "project_id": "rockpaperscissors-7e432",
+    "storage_bucket": "rockpaperscissors-7e432.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:367143592058:android:35f0e3043881b354",
+        "android_client_info": {
+          "package_name": "com.example.rockpaperscissors"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "367143592058-eol7fq2gtrtm48t0h4g75frt17fsjnva.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.rockpaperscissors",
+            "certificate_hash": "9141fa02ca4d00433f27eaf64c8a130ba9d59d44"
+          }
+        },
+        {
+          "client_id": "367143592058-eveuqgciub8kehk9rkudmccui95i7s08.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.rockpaperscissors",
+            "certificate_hash": "7d2ce1e6c908bd8619b73b8101ad41147772af9f"
+          }
+        },
+        {
+          "client_id": "367143592058-6oi3q4a3unsdogaihl3can9rskd45apg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEkK9Us6tKpgDitZwIfZW6MTzHF1AMeOc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "367143592058-6oi3q4a3unsdogaihl3can9rskd45apg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
