@@ -34,6 +34,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 
@@ -90,9 +91,10 @@ public class MainActivity extends AppCompatActivity {
         map.put("by", getCurrentUsername());
         map.put("at", new SimpleDateFormat("h:mm a", Locale.ENGLISH).format(new Date()));
 
-        // TODO: create room
+        // TODO: improve roomID generation
+        final String roomId = getCurrentUsername() + username + new Date().getTime();
 
-        final String roomId = createRoomAsHost(username);
+        createRoomAsHost(username, roomId);
 
         // TODO: add firebase admin sdk
 
@@ -124,10 +126,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String createRoomAsHost(String opponentUsername) {
-        // TODO: improve roomID generation
-        String roomId = getCurrentUsername() + opponentUsername + String.valueOf(new Date().getTime());
-
+    private String createRoomAsHost(String opponentUsername, String roomId) {
         Log.d(TAG, "createRoomAsHost: " + roomId);
 
         Map<String, Object> roomDetails = new HashMap<>();
@@ -148,14 +147,17 @@ public class MainActivity extends AppCompatActivity {
                 .document(roomId)
                 .set(roomDetails);
 
+
+        Map<String, Object> userDetailsUpdate = new HashMap<>();
+        userDetailsUpdate.put("roomId", roomId);
+        userDetailsUpdate.put("isInGame", true);
         db.collection("users")
                 .document(getCurrentUsername())
-                .update("roomId", roomId);
+                .update(userDetailsUpdate);
         db.collection("users")
                 .document(opponentUsername)
-                .update("roomId", roomId);
+                .update(userDetailsUpdate);
 
-        // TODO: go to new intent
         return roomId;
     }
 
@@ -167,8 +169,6 @@ public class MainActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(final DocumentSnapshot documentSnapshot) {
-                        Log.d(TAG, "onSuccess: " + documentSnapshot.get("name") + " " + documentSnapshot.get("roomId"));
-
                         db.collection("rooms")
                                 .document((String) documentSnapshot.get("roomId"))
                                 .update("isFull", true)
@@ -198,6 +198,28 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "onFailure: JOINROOMASOPPONENT GET FAILIRE" + e.toString());
                     }
                 });
+
+
+        db.collection("users")
+                .document(getCurrentUsername())
+                .collection("invites")
+                .whereEqualTo("by", hostUsername)
+                .get()
+
+                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                    @Override
+                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                        for (QueryDocumentSnapshot queryDocumentSnapshot : queryDocumentSnapshots) {
+                            queryDocumentSnapshot.getReference().delete();
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d(TAG, "onFailure: removing invites failure");
+                    }
+                });
     }
 
     private void getPendingInvites() {
@@ -208,11 +230,11 @@ public class MainActivity extends AppCompatActivity {
                 .addSnapshotListener(this, new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        usernames.clear();
-                        listViewDetails.clear();
-                        listView.setAdapter(null);
-
                         if (queryDocumentSnapshots != null) {
+                            usernames.clear();
+                            listViewDetails.clear();
+                            listView.setAdapter(null);
+
                             for (QueryDocumentSnapshot queryDocumentSnapshot : queryDocumentSnapshots) {
                                 usernames.add((String) queryDocumentSnapshot.get("by"));
                                 listViewDetails.add(queryDocumentSnapshot.get("by") + " at " + queryDocumentSnapshot.get("at"));
@@ -256,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+
         listView = findViewById(R.id.listView);
         getPendingInvites();
     }
