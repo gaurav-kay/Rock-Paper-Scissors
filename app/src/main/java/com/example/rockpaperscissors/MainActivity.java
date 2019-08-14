@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         sendInviteButton = findViewById(R.id.inviteButton);
         listView = findViewById(R.id.listView);
         listView.setAdapter(null);
+        username = findViewById(R.id.usernameEditText);
 
         sendInviteButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -72,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+
                 Toast.makeText(MainActivity.this, "clicc", Toast.LENGTH_SHORT).show();
                 Log.d(TAG, "onItemClick: clicc");
             }
@@ -106,7 +108,10 @@ public class MainActivity extends AppCompatActivity {
 
         // TODO: create room
 
-        if (checkIfUserExists(username)) {
+
+        // TODO: add firebase admin sdk
+
+        if (true) {
             db.collection("users")
                     .document(username)
                     .collection("invites")
@@ -133,25 +138,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private boolean checkIfUserExists(String username) {
-        final boolean[] flag = {true};
-        mAuth.signInWithEmailAndPassword(username + "@test.com", "testtest")
-                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if (!task.isSuccessful()) {
-                            try {
-                                throw task.getException();
-                            } catch (FirebaseAuthInvalidUserException e) {
-                                flag[0] = false;
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                });
-        return flag[0];
-    }
+//    private boolean checkIfUserExists(String username) {
+//        final boolean[] flag = {true};
+//        mAuth.signInWithEmailAndPassword(username + "@test.com", "testtest")
+//                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+//                    @Override
+//                    public void onComplete(@NonNull Task<AuthResult> task) {
+//                        if (!task.isSuccessful()) {
+//                            try {
+//                                throw task.getException();
+//                            } catch (FirebaseAuthInvalidUserException e) {
+//                                flag[0] = false;
+//                            } catch (Exception e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    }
+//                });
+//        return flag[0];
+//    }
 
     private String getCurrentUsername() {
         FirebaseUser currentUser = mAuth.getCurrentUser();
