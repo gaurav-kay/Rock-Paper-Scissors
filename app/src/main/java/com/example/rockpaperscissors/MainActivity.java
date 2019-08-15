@@ -12,6 +12,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -60,10 +61,14 @@ public class MainActivity extends AppCompatActivity {
 
         getPendingInvites();
 
+        TextView welcomeTextView = findViewById(R.id.welcomeTextView);
         sendInviteButton = findViewById(R.id.inviteButton);
         listView = findViewById(R.id.listView);
         listView.setAdapter(null);
         username = findViewById(R.id.usernameEditText);
+
+        String textViewText = "Hi, " + getCurrentUsername() + ". Let's play!";
+        welcomeTextView.setText(textViewText);
 
         sendInviteButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -109,7 +114,8 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onSuccess(Void aVoid) {
                             Intent newActivityIntent = new Intent(MainActivity.this, LoadingScreenActivity.class);
-                            newActivityIntent.putExtra("username", username);
+                            newActivityIntent.putExtra("opponentUsername", username);
+                            newActivityIntent.putExtra("hostUsername", getCurrentUsername());
                             newActivityIntent.putExtra("roomId", roomId);
 
                             startActivity(newActivityIntent);
@@ -126,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String createRoomAsHost(String opponentUsername, String roomId) {
+    private void createRoomAsHost(String opponentUsername, String roomId) {
         Log.d(TAG, "createRoomAsHost: " + roomId);
 
         Map<String, Object> roomDetails = new HashMap<>();
@@ -157,8 +163,6 @@ public class MainActivity extends AppCompatActivity {
         db.collection("users")
                 .document(opponentUsername)
                 .update(userDetailsUpdate);
-
-        return roomId;
     }
 
     private void joinRoomAsOpponent(String hostUsername) {
