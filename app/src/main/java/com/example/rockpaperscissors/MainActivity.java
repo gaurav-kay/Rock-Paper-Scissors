@@ -135,17 +135,17 @@ public class MainActivity extends AppCompatActivity {
     private void createRoomAsHost(String opponentUsername, String roomId) {
         Log.d(TAG, "createRoomAsHost: " + roomId);
 
+        // only host can create rooms
         Map<String, Object> roomDetails = new HashMap<>();
         roomDetails.put("host", getCurrentUsername());
         roomDetails.put("opponent", opponentUsername);
-        roomDetails.put("hostMove", "");
-        roomDetails.put("opponentMove", "");
         roomDetails.put("startTime", String.valueOf(new Date().getTime()));
         roomDetails.put("isFull", false);
         roomDetails.put("isGameOver", false);
-        roomDetails.put("hostScore", 0);
-        roomDetails.put("opponentScore", 0);
+        roomDetails.put("gameState", 0);
         roomDetails.put("roomId", roomId);
+        roomDetails.put(getCurrentUsername() + "Score", 0);
+        roomDetails.put(opponentUsername + "Score", 0);
 
         Log.d(TAG, "createRoomAsHost: " + roomDetails.values() + " " + roomDetails.keySet());
 
