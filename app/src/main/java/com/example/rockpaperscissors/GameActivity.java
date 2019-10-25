@@ -15,6 +15,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.Source;
 
 import java.util.HashMap;
 
@@ -32,11 +33,12 @@ public class GameActivity extends AppCompatActivity {
     private TextView scoreTextView, opponentMoveTextView, yourMoveTextView;
 
     private String roomId = null;
-    private Integer gameState = null;
+    private Long gameState = null;
     private boolean userPlayed = false;
     private String opponentMove = null, userMove = null;
     private String opponentUsername = null, currentUsername = null;
-    private Integer prevCurrentUserScore = 0, prevOtherUserScore = 0;
+    private Long prevCurrentUserScore = Long.parseLong("0");
+    private Long prevOtherUserScore = Long.parseLong("0");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +51,6 @@ public class GameActivity extends AppCompatActivity {
         opponentUsername = bundle.getString("opponentUsername");
         currentUsername = bundle.getString("hostUsername");
 
-        Log.d(TAG, "onCreate: " + roomId + " :" + opponentUsername + " : " + currentUsername);
         addGameStateListener();
 
         rockButton = findViewById(R.id.rock_button);
@@ -104,21 +105,16 @@ public class GameActivity extends AppCompatActivity {
                     .addSnapshotListener(new EventListener<DocumentSnapshot>() {
                         @Override
                         public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                            prevCurrentUserScore = (Integer) documentSnapshot.get(currentUsername + "Score");
-                            prevOtherUserScore = (Integer) documentSnapshot.get(opponentUsername + "Score");
-
-                            Log.d(TAG, "onEvent: UPDATED" + documentSnapshot);
+                            prevCurrentUserScore = (Long) documentSnapshot.get(currentUsername + "Score");
+                            prevOtherUserScore = (Long) documentSnapshot.get(opponentUsername + "Score");
 
                             if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(0))) {
-                                gameState = 0;
-
-                                Log.d(TAG, "onEvent: WERKS");
+                                gameState = 0L;
 
                                 askUserToPlayTurn();
                             } else if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(1))) {
-                                gameState = 1;
+                                gameState = 1L;
 
-                                Log.d(TAG, "onEvent: GAME STATE is 1 and userPlayed is " + userPlayed);
                                 if (userPlayed == false) {
                                     updateForOtherUserPlayed();
 
@@ -129,10 +125,9 @@ public class GameActivity extends AppCompatActivity {
                                     // presently, no update turn feature
                                 }
                             } else if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(2))) {
-                                gameState = 2;
+                                gameState = 2L;
 
                                 opponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");
-                                Log.d(TAG, "onEvent: GAME STATE is 2");
                                 calculateScores();
                                 updateForRoundFinish();
                             }
@@ -153,25 +148,33 @@ public class GameActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        userMove = (String) documentSnapshot.get(currentUsername + "Turn");
-                        opponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");
+                        String getUserMove = (String) documentSnapshot.get(currentUsername + "Turn");
+                        String getOpponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");
 
                         boolean currentUserWins = false;
-                        if (userMove.equals(opponentMove)) {
-                            currentUserWins = false;
-                        } else if (userMove.equals("rock") && opponentMove.equals("scissor")) {
+                        if (getUserMove.equals(getOpponentMove)) {
+                            currentUserWins = Boolean.parseBoolean(null);
+                        } else if (getUserMove.equals("rock") && getOpponentMove.equals("scissor")) {
                             currentUserWins = true;
-                        } else if (userMove.equals("paper") && opponentMove.equals("rock")) {
+                        } else if (getUserMove.equals("paper") && getOpponentMove.equals("rock")) {
                             currentUserWins = true;
-                        } else if (userMove.equals("scissor") && opponentMove.equals("paper")) {
+                        } else if (getUserMove.equals("scissor") && getOpponentMove.equals("paper")) {
                             currentUserWins = true;
                         }
 
+                        if (currentUserWins == Boolean.parseBoolean(null)) {
+
+                        }
                         if (currentUserWins) {
                             HashMap<String, Object> map = new HashMap<>();
                             map.put("gameState", 0);
                             map.put(currentUsername + "Score", prevCurrentUserScore + 1);
+                            map.put(opponentUsername + "Score", prevOtherUserScore);
+
                             prevCurrentUserScore += 1;
+                            currentUserWins = false;
+
+                            Log.d(TAG, "onSuccess: I WON: Scores: me, other" + prevCurrentUserScore + " " + prevOtherUserScore);
 
                             db.collection("rooms")
                                     .document(roomId)
@@ -181,7 +184,12 @@ public class GameActivity extends AppCompatActivity {
                             HashMap<String, Object> map = new HashMap<>();
                             map.put("gameState", 0);
                             map.put(opponentUsername + "Score", prevOtherUserScore + 1);
+                            map.put(currentUsername + "Score", prevCurrentUserScore);
+
                             prevOtherUserScore += 1;
+                            currentUserWins = false;
+
+                            Log.d(TAG, "onSuccess: I LOST: Scores: me, other" + prevCurrentUserScore + " " + prevOtherUserScore);
 
                             db.collection("rooms")
                                     .document(roomId)
@@ -189,7 +197,10 @@ public class GameActivity extends AppCompatActivity {
                                     .update(map);
                         }
 
-                        scoreTextView.setText(currentUsername + ": " + prevCurrentUserScore + ", " + opponentUsername + ": " + prevOtherUserScore);
+                        String s = currentUsername + ": " + prevCurrentUserScore + ", " + opponentUsername + ": " + prevOtherUserScore;
+                        scoreTextView.setText(s);
+
+                        updateForRoundFinish();
                     }
                 });
 //        boolean currentUserWins = false;
@@ -234,6 +245,8 @@ public class GameActivity extends AppCompatActivity {
         // set loading screen maybe
     }
 
+    
+
     private void updateForOtherUserPlayed() {
         opponentMoveTextView.setText("Opponent has played");
 
@@ -261,8 +274,6 @@ public class GameActivity extends AppCompatActivity {
                             map.put("gameState", 2);
                             map.put(getCurrentUsername() + "Turn", move);
 
-                            Log.d(TAG, "onSuccess: OYOYOYO");
-
                             db.collection("rooms")
                                     .document(roomId)
 
@@ -284,18 +295,10 @@ public class GameActivity extends AppCompatActivity {
         map.put("gameState", 1);
         map.put(getCurrentUsername() + "Turn", move);
 
-        Log.d(TAG, "updateWithUserTurn: " + map);
-
         db.collection("rooms")
                 .document(roomId)
 
-                .update(map)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "onSuccess: UPDATED");
-                    }
-                });
+                .update(map);
     }
 
     private String getCurrentUsername() {

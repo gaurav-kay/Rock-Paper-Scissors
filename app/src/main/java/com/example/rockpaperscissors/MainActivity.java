@@ -165,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
                 .update(userDetailsUpdate);
     }
 
-    private void joinRoomAsOpponent(String hostUsername) {
+    private void joinRoomAsOpponent(final String hostUsername) {
         db.collection("users")
                 .document(hostUsername)
                 .get()
@@ -183,6 +183,8 @@ public class MainActivity extends AppCompatActivity {
                                         Intent startNewActivityIntent =
                                                 new Intent(MainActivity.this, GameActivity.class);
                                         startNewActivityIntent.putExtra("roomId", (String) documentSnapshot.get("roomId"));
+                                        startNewActivityIntent.putExtra("hostUsername", hostUsername);
+                                        startNewActivityIntent.putExtra("opponentUsername", getCurrentUsername());
 
                                         startActivity(startNewActivityIntent);
                                         finish();
