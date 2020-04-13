@@ -33,6 +33,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 import java.text.DateFormatSymbols;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +51,9 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayList<String> usernames = new ArrayList<>();
     private ArrayList<String> listViewDetails = new ArrayList<>();
+    private ArrayList<String> invitesRoomIds = new ArrayList<>();
+
+    private String currentUsername = null;
 
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
     private FirebaseAuth mAuth = FirebaseAuth.getInstance();
@@ -84,20 +88,22 @@ public class MainActivity extends AppCompatActivity {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                joinRoomAsOpponent(usernames.get(i));
+                joinRoomAsOpponent(usernames.get(i), invitesRoomIds.get(i));
 
-                Log.d(TAG, "onItemClick: " + usernames.get(i));
+                Log.d(TAG, "onItemClick: " + usernames.get(i) + " room id: " + invitesRoomIds.get(i));
             }
         });
     }
 
     private void sendInvite(final String username) {
+        final String roomId = new Date().getTime() + getCurrentUsername() + username;
+
         Map<String, Object> map = new HashMap<>();
         map.put("by", getCurrentUsername());
         map.put("at", new SimpleDateFormat("h:mm a", Locale.ENGLISH).format(new Date()));
-
+        map.put("roomId", roomId);  // TODO: add roomId to invites and join directly
+        // TODO: fix the data being transferred b/w intents
         // TODO: improve roomID generation
-        final String roomId = getCurrentUsername() + username + new Date().getTime();
 
         createRoomAsHost(username, roomId);
 
@@ -117,6 +123,8 @@ public class MainActivity extends AppCompatActivity {
                             newActivityIntent.putExtra("opponentUsername", username);
                             newActivityIntent.putExtra("hostUsername", getCurrentUsername());
                             newActivityIntent.putExtra("roomId", roomId);
+                            newActivityIntent.putExtra("username", username);
+                            newActivityIntent.putExtra("server", true);
 
                             startActivity(newActivityIntent);
                         }
@@ -144,15 +152,22 @@ public class MainActivity extends AppCompatActivity {
         roomDetails.put("isFull", false);
         roomDetails.put("isGameOver", false);
         roomDetails.put("hostScore", 0);
-        roomDetails.put("opponentScore", 0);
+//        roomDetails.put("opponentScore", 0);
         roomDetails.put("roomId", roomId);
+        roomDetails.put("opponentPlayed", false);
+        roomDetails.put("serverPlayed", false);
+        roomDetails.put("opponentPlayedMove", "");
+        roomDetails.put("serverPlayedMove", "");
+        roomDetails.put("serverScore", 0);
+        roomDetails.put("opponentScore", 0);
+        roomDetails.put("serverUsername", getCurrentUsername());  // TODO: can be a problem while switching servers
+        roomDetails.put("opponentUsername", opponentUsername);
 
         Log.d(TAG, "createRoomAsHost: " + roomDetails.values() + " " + roomDetails.keySet());
 
         db.collection("rooms")
                 .document(roomId)
                 .set(roomDetails);
-
 
         Map<String, Object> userDetailsUpdate = new HashMap<>();
         userDetailsUpdate.put("roomId", roomId);
@@ -165,45 +180,68 @@ public class MainActivity extends AppCompatActivity {
                 .update(userDetailsUpdate);
     }
 
-    private void joinRoomAsOpponent(String hostUsername) {
-        db.collection("users")
-                .document(hostUsername)
-                .get()
+    private void joinRoomAsOpponent(String hostUsername, final String roomId) {
+//        db.collection("users")
+//                .document(hostUsername)
+//                .get()
+//
+//                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+//                    @Override
+//                    public void onSuccess(final DocumentSnapshot documentSnapshot) {
+//                        db.collection("rooms")
+//                                .document((String) documentSnapshot.get("roomId"))
+//                                .update("isFull", true)
+//
+//                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+//                                    @Override
+//                                    public void onSuccess(Void aVoid) {
+//                                        Intent startNewActivityIntent =
+//                                                new Intent(MainActivity.this, GameActivity.class);
+//                                        startNewActivityIntent.putExtra("roomId", (String) documentSnapshot.get("roomId"));
+//
+//                                        startActivity(startNewActivityIntent);
+//                                        finish();
+//                                    }
+//                                })
+//                                .addOnFailureListener(new OnFailureListener() {
+//                                    @Override
+//                                    public void onFailure(@NonNull Exception e) {
+//                                        Log.d(TAG, "onFailure: ROOM UPDATION JOINROOMASOPPONENT FAILED" + e.toString());
+//                                    }
+//                                });
+//                    }
+//                })
+//                .addOnFailureListener(new OnFailureListener() {
+//                    @Override
+//                    public void onFailure(@NonNull Exception e) {
+//                        Log.d(TAG, "onFailure: JOINROOMASOPPONENT GET FAILIRE" + e.toString());
+//                    }
+//                });
+        // update room details of roomId and once done, join the room, start new activity
+        db.collection("rooms")
+                .document(roomId)
+                .update("isFull", true)
 
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(final DocumentSnapshot documentSnapshot) {
-                        db.collection("rooms")
-                                .document((String) documentSnapshot.get("roomId"))
-                                .update("isFull", true)
+                    public void onSuccess(Void aVoid) {
+                        Intent startNewActivityIntent =
+                                new Intent(MainActivity.this, GameActivity.class);
+                        startNewActivityIntent.putExtra("roomId", roomId);
+                        startNewActivityIntent.putExtra("server", false);
 
-                                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                    @Override
-                                    public void onSuccess(Void aVoid) {
-                                        Intent startNewActivityIntent =
-                                                new Intent(MainActivity.this, GameActivity.class);
-                                        startNewActivityIntent.putExtra("roomId", (String) documentSnapshot.get("roomId"));
-
-                                        startActivity(startNewActivityIntent);
-                                        finish();
-                                    }
-                                })
-                                .addOnFailureListener(new OnFailureListener() {
-                                    @Override
-                                    public void onFailure(@NonNull Exception e) {
-                                        Log.d(TAG, "onFailure: ROOM UPDATION JOINROOMASOPPONENT FAILED" + e.toString());
-                                    }
-                                });
+                        startActivity(startNewActivityIntent);
+                        finish();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.d(TAG, "onFailure: JOINROOMASOPPONENT GET FAILIRE" + e.toString());
+                        Log.d(TAG, "onFailure: ROOM UPDATION JOINROOMASOPPONENT FAILED" + e.toString());
                     }
                 });
 
-
+        // deleting all invites sent by host
         db.collection("users")
                 .document(getCurrentUsername())
                 .collection("invites")
@@ -237,12 +275,16 @@ public class MainActivity extends AppCompatActivity {
                         if (queryDocumentSnapshots != null) {
                             usernames.clear();
                             listViewDetails.clear();
+                            invitesRoomIds.clear();
                             listView.setAdapter(null);
 
                             for (QueryDocumentSnapshot queryDocumentSnapshot : queryDocumentSnapshots) {
                                 usernames.add((String) queryDocumentSnapshot.get("by"));
                                 listViewDetails.add(queryDocumentSnapshot.get("by") + " at " + queryDocumentSnapshot.get("at"));
+                                invitesRoomIds.add((String) queryDocumentSnapshot.get("roomId"));
                             }
+
+                            Collections.reverse(listViewDetails);  // mayyyy impact onClick
 
                             ArrayAdapter arrayAdapter =
                                     new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_list_item_1, listViewDetails);
@@ -274,9 +316,13 @@ public class MainActivity extends AppCompatActivity {
 //    }
 
     private String getCurrentUsername() {
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-
-        return currentUser.getEmail().split("@")[0];
+        if (currentUsername == null) {
+            FirebaseUser currentUser = mAuth.getCurrentUser();
+            currentUsername = currentUser.getEmail().split("@")[0];
+            return currentUser.getEmail().split("@")[0];
+        } else {
+            return currentUsername;
+        }
     }
 
     @Override
