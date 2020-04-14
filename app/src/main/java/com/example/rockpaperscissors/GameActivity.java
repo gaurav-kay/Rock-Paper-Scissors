@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -16,6 +17,7 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.annotation.Nullable;
@@ -28,6 +30,7 @@ public class GameActivity extends AppCompatActivity {
 
     private Button rockButton, paperButton, scissorButton;
     private TextView scoreTextView, opponentMoveTextView, yourMoveTextView, outcomeTextView;
+    private ListView turnsListView;
 
     private String roomId, opponentUsername, currentUsername;
     private boolean server;
@@ -37,6 +40,15 @@ public class GameActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
+
+        rockButton = findViewById(R.id.rock_button);
+        paperButton = findViewById(R.id.paper_button);
+        scissorButton = findViewById(R.id.scissor_button);
+        scoreTextView = findViewById(R.id.score_text_view);
+        opponentMoveTextView = findViewById(R.id.other_user_turn_text_view);
+        yourMoveTextView = findViewById(R.id.user_turn_text_view);
+        outcomeTextView = findViewById(R.id.outcome_text_view);
+        turnsListView = findViewById(R.id.turns_list_view);
 
         Bundle bundle = getIntent().getExtras();
 
@@ -55,13 +67,7 @@ public class GameActivity extends AppCompatActivity {
 
         // read normally (?)
 
-        rockButton = findViewById(R.id.rock_button);
-        paperButton = findViewById(R.id.paper_button);
-        scissorButton = findViewById(R.id.scissor_button);
-        scoreTextView = findViewById(R.id.score_text_view);
-        opponentMoveTextView = findViewById(R.id.other_user_turn_text_view);
-        yourMoveTextView = findViewById(R.id.user_turn_text_view);
-        outcomeTextView = findViewById(R.id.outcome_text_view);
+//        turnsListView.setRotation(-90);
 
         rockButton.setOnClickListener(clickHandler());
         paperButton.setOnClickListener(clickHandler());
@@ -92,8 +98,21 @@ public class GameActivity extends AppCompatActivity {
                                     }
                                 }
 
+                                HashMap<String, Object> turnHashMap = new HashMap<>();
+                                turnHashMap.put("serverMove", serverMove);
+                                turnHashMap.put("opponentMove", opponentMove);
+                                turnHashMap.put("isServerWin", isServerWin(serverMove, opponentMove));
+                                turnHashMap.put("serverScore", documentSnapshot.get("serverScore"));
+                                turnHashMap.put("opponentScore", documentSnapshot.get("opponentScore"));
+
+                                ArrayList<HashMap<String, Object>> turns =
+                                        (ArrayList<HashMap<String, Object>>) documentSnapshot.get("turns");
+
+                                turns.add(turnHashMap);
+
                                 updateMap.put("serverPlayed", false);
                                 updateMap.put("opponentPlayed", false);
+                                updateMap.put("turns", turns);
 
                                 db.collection("rooms")
                                         .document(roomId)
@@ -106,9 +125,9 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private boolean isServerWin(String serverMove, String opponentMove) {
-        return serverMove.equals("paper") && opponentMove.equals("rock") ||
-                serverMove.equals("rock") && opponentMove.equals("scissor") ||
-                serverMove.equals("scissor") && opponentMove.equals("paper");
+        return serverMove.equals("Paper") && opponentMove.equals("Rock") ||
+                serverMove.equals("Rock") && opponentMove.equals("Scissor") ||
+                serverMove.equals("Scissor") && opponentMove.equals("Paper");
     }
 
     private void addRoomListener() {  // client side
@@ -131,6 +150,8 @@ public class GameActivity extends AppCompatActivity {
                                     (String) documentSnapshot.get("serverUsername"),
                                     (String) documentSnapshot.get("opponentUsername")
                             );
+
+                            updateTurnsList((ArrayList<HashMap<String, Object>>) documentSnapshot.get("turns"));
                         }
 
                         if (!((boolean) documentSnapshot.get("serverPlayed") || (boolean) documentSnapshot.get("opponentPlayed"))) {
@@ -146,9 +167,19 @@ public class GameActivity extends AppCompatActivity {
                 });
     }
 
+    private void updateTurnsList(ArrayList<HashMap<String, Object>> turns) {
+        TurnsListViewAdapter turnsListViewAdapter = new TurnsListViewAdapter(this, turns, server);
+
+        turnsListView.setAdapter(turnsListViewAdapter);
+    }
+
     private void resetForNextRound(String serverPlayedMove, String opponentPlayedMove, String serverUsername, String opponentUsername) {
         if (serverPlayedMove.equals(opponentPlayedMove)) {
-            outcomeTextView.setText("It's a draw!");
+            if (serverPlayedMove.equals("")) {
+                outcomeTextView.setText("");
+            } else {
+                outcomeTextView.setText("It's a draw!");
+            }
         } else {
             if (server) {
                 outcomeTextView.setText(opponentUsername + " chose " + opponentPlayedMove);
@@ -185,18 +216,12 @@ public class GameActivity extends AppCompatActivity {
             public void onClick(View view) {
                 String userMove = null;
                 if (view == rockButton) {
-                    userMove = "rock";
+                    userMove = "Rock";
                 } else if (view == paperButton) {
-                    userMove = "paper";
+                    userMove = "Paper";
                 } else if (view == scissorButton) {
-                    userMove = "scissor";
+                    userMove = "Scissor";
                 }
-
-                rockButton.setClickable(false);
-                paperButton.setClickable(false);
-                scissorButton.setClickable(false);
-
-                yourMoveTextView.setText(userMove);
 
                 updateWithUserTurn(userMove);
             }
@@ -204,6 +229,14 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void updateWithUserTurn(String userMove) {
+        rockButton.setClickable(false);
+        paperButton.setClickable(false);
+        scissorButton.setClickable(false);
+
+        userMove = String.valueOf(userMove.charAt(0)).toUpperCase() + userMove.substring(1);
+
+        yourMoveTextView.setText(userMove);
+
         HashMap<String, Object> updateMap = new HashMap<>();
         updateMap.put(playerPlayed + "Move", userMove);
         updateMap.put(playerPlayed, true);
@@ -222,4 +255,4 @@ public class GameActivity extends AppCompatActivity {
 }
 
 // basically the server and opponent act as player 1 and player 2. check is done at client side.
-// TODO: some buttons need double click? track w debugg
+// TODO: add past events slider

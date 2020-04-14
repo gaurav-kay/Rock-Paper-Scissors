@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.media.JetPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -80,7 +81,11 @@ public class MainActivity extends AppCompatActivity {
                 if (username.getText().toString().trim().equals("")) {
                     Toast.makeText(MainActivity.this, "Enter a username", Toast.LENGTH_SHORT).show();
                 } else {
-                    sendInvite(username.getText().toString());
+                    if (username.getText().toString().equals(getCurrentUsername())) {
+                        Toast.makeText(MainActivity.this, "You can't really play Rock Paper Scissors by yourself :P", Toast.LENGTH_SHORT).show();
+                    } else {
+                        sendInvite(username.getText().toString());
+                    }
                 }
             }
         });
@@ -162,6 +167,7 @@ public class MainActivity extends AppCompatActivity {
         roomDetails.put("opponentScore", 0);
         roomDetails.put("serverUsername", getCurrentUsername());  // TODO: can be a problem while switching servers
         roomDetails.put("opponentUsername", opponentUsername);
+        roomDetails.put("turns", new ArrayList<HashMap<String, Object>>());
 
         Log.d(TAG, "createRoomAsHost: " + roomDetails.values() + " " + roomDetails.keySet());
 
