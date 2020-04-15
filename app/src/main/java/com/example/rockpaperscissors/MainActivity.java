@@ -148,11 +148,10 @@ public class MainActivity extends AppCompatActivity {
     private void createRoomAsHost(String opponentUsername, String roomId) {
         Log.d(TAG, "createRoomAsHost: " + roomId);
 
+        // only host can create rooms
         Map<String, Object> roomDetails = new HashMap<>();
         roomDetails.put("host", getCurrentUsername());
         roomDetails.put("opponent", opponentUsername);
-        roomDetails.put("hostMove", "");
-        roomDetails.put("opponentMove", "");
         roomDetails.put("startTime", String.valueOf(new Date().getTime()));
         roomDetails.put("isFull", false);
         roomDetails.put("isGameOver", false);
@@ -187,42 +186,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void joinRoomAsOpponent(String hostUsername, final String roomId) {
-//        db.collection("users")
-//                .document(hostUsername)
-//                .get()
-//
-//                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-//                    @Override
-//                    public void onSuccess(final DocumentSnapshot documentSnapshot) {
-//                        db.collection("rooms")
-//                                .document((String) documentSnapshot.get("roomId"))
-//                                .update("isFull", true)
-//
-//                                .addOnSuccessListener(new OnSuccessListener<Void>() {
-//                                    @Override
-//                                    public void onSuccess(Void aVoid) {
-//                                        Intent startNewActivityIntent =
-//                                                new Intent(MainActivity.this, GameActivity.class);
-//                                        startNewActivityIntent.putExtra("roomId", (String) documentSnapshot.get("roomId"));
-//
-//                                        startActivity(startNewActivityIntent);
-//                                        finish();
-//                                    }
-//                                })
-//                                .addOnFailureListener(new OnFailureListener() {
-//                                    @Override
-//                                    public void onFailure(@NonNull Exception e) {
-//                                        Log.d(TAG, "onFailure: ROOM UPDATION JOINROOMASOPPONENT FAILED" + e.toString());
-//                                    }
-//                                });
-//                    }
-//                })
-//                .addOnFailureListener(new OnFailureListener() {
-//                    @Override
-//                    public void onFailure(@NonNull Exception e) {
-//                        Log.d(TAG, "onFailure: JOINROOMASOPPONENT GET FAILIRE" + e.toString());
-//                    }
-//                });
         // update room details of roomId and once done, join the room, start new activity
         db.collection("rooms")
                 .document(roomId)
@@ -300,26 +263,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
-
-//    private boolean checkIfUserExists(String username) {
-//        final boolean[] flag = {true};
-//        mAuth.signInWithEmailAndPassword(username + "@test.com", "testtest")
-//                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-//                    @Override
-//                    public void onComplete(@NonNull Task<AuthResult> task) {
-//                        if (!task.isSuccessful()) {
-//                            try {
-//                                throw task.getException();
-//                            } catch (FirebaseAuthInvalidUserException e) {
-//                                flag[0] = false;
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-//                        }
-//                    }
-//                });
-//        return flag[0];
-//    }
 
     private String getCurrentUsername() {
         if (currentUsername == null) {

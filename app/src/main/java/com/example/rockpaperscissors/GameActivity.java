@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -25,6 +26,8 @@ import javax.annotation.Nullable;
 
 public class GameActivity extends AppCompatActivity {
     private static final String TAG = "TAG";
+
+    private Bundle bundle;
 
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
     private FirebaseAuth mAuth = FirebaseAuth.getInstance();
@@ -76,7 +79,7 @@ public class GameActivity extends AppCompatActivity {
     private void setUpServer() {
         if (server) {
             Log.d(TAG, "setUpServer: SET UP BY " + Build.MANUFACTURER + " " + Build.MODEL);
-
+          
             db.collection("rooms")
                     .document(roomId)
 
@@ -254,4 +257,3 @@ public class GameActivity extends AppCompatActivity {
 }
 
 // basically the server and opponent act as player 1 and player 2. check is done at client side.
-// TODO: add past events slider

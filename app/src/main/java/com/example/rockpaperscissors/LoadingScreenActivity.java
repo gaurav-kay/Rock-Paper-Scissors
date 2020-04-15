@@ -37,7 +37,7 @@ public class LoadingScreenActivity extends AppCompatActivity {
         TextView textView = findViewById(R.id.textView);
         Button cancelButton = findViewById(R.id.button);
 
-        String textViewText = "Waiting for " + bundle.getString("username") + "'s response";
+        String textViewText = "Waiting for " + bundle.getString("opponentUsername") + "'s response";
         textView.setText(textViewText);
 
         cancelButton.setOnClickListener(new View.OnClickListener() {
@@ -64,6 +64,8 @@ public class LoadingScreenActivity extends AppCompatActivity {
                             Intent newActivityIntent = new Intent(LoadingScreenActivity.this, GameActivity.class);
                             newActivityIntent.putExtra("roomId", (String) bundle.get("roomId"));
                             newActivityIntent.putExtra("server", true);
+                            newActivityIntent.putExtra("hostUsername", (String) bundle.get("hostUsername"));
+                            newActivityIntent.putExtra("opponentUsername", (String) bundle.get("opponentUsername"));
 
                             startActivity(newActivityIntent);
                             finish();
