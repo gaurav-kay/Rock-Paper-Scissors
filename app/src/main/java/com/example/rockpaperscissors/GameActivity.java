@@ -1,13 +1,14 @@
 package com.example.rockpaperscissors;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -30,7 +31,7 @@ public class GameActivity extends AppCompatActivity {
 
     private Button rockButton, paperButton, scissorButton;
     private TextView scoreTextView, opponentMoveTextView, yourMoveTextView, outcomeTextView;
-    private ListView turnsListView;
+    private RecyclerView turnsRecyclerView;
 
     private String roomId, opponentUsername, currentUsername;
     private boolean server;
@@ -48,7 +49,7 @@ public class GameActivity extends AppCompatActivity {
         opponentMoveTextView = findViewById(R.id.other_user_turn_text_view);
         yourMoveTextView = findViewById(R.id.user_turn_text_view);
         outcomeTextView = findViewById(R.id.outcome_text_view);
-        turnsListView = findViewById(R.id.turns_list_view);
+        turnsRecyclerView = findViewById(R.id.turns_recycler_view);
 
         Bundle bundle = getIntent().getExtras();
 
@@ -65,9 +66,7 @@ public class GameActivity extends AppCompatActivity {
 
         addRoomListener();  // non server only listens
 
-        // read normally (?)
-
-//        turnsListView.setRotation(-90);
+        turnsRecyclerView.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
 
         rockButton.setOnClickListener(clickHandler());
         paperButton.setOnClickListener(clickHandler());
@@ -168,9 +167,9 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void updateTurnsList(ArrayList<HashMap<String, Object>> turns) {
-        TurnsListViewAdapter turnsListViewAdapter = new TurnsListViewAdapter(this, turns, server);
+        TurnsRecyclerViewAdapter turnsRecyclerViewAdapter = new TurnsRecyclerViewAdapter(turns, server);
 
-        turnsListView.setAdapter(turnsListViewAdapter);
+        turnsRecyclerView.setAdapter(turnsRecyclerViewAdapter);
     }
 
     private void resetForNextRound(String serverPlayedMove, String opponentPlayedMove, String serverUsername, String opponentUsername) {
