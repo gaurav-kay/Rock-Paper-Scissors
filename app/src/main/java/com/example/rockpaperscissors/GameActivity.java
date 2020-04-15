@@ -1,7 +1,10 @@
 package com.example.rockpaperscissors;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -15,8 +18,8 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
-import com.google.firebase.firestore.Source;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.annotation.Nullable;
@@ -30,28 +33,17 @@ public class GameActivity extends AppCompatActivity {
     private FirebaseAuth mAuth = FirebaseAuth.getInstance();
 
     private Button rockButton, paperButton, scissorButton;
-    private TextView scoreTextView, opponentMoveTextView, yourMoveTextView;
+    private TextView scoreTextView, opponentMoveTextView, yourMoveTextView, outcomeTextView;
+    private RecyclerView turnsRecyclerView;
 
-    private String roomId = null;
-    private Long gameState = null;
-    private boolean userPlayed = false;
-    private String opponentMove = null, userMove = null;
-    private String opponentUsername = null, currentUsername = null;
-    private Long prevCurrentUserScore = Long.parseLong("0");
-    private Long prevOtherUserScore = Long.parseLong("0");
+    private String roomId, opponentUsername, currentUsername;
+    private boolean server;
+    private String playerPlayed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
-
-        bundle = getIntent().getExtras();
-
-        roomId = bundle.getString("roomId");
-        opponentUsername = bundle.getString("opponentUsername");
-        currentUsername = bundle.getString("hostUsername");
-
-        addGameStateListener();
 
         rockButton = findViewById(R.id.rock_button);
         paperButton = findViewById(R.id.paper_button);
@@ -59,246 +51,202 @@ public class GameActivity extends AppCompatActivity {
         scoreTextView = findViewById(R.id.score_text_view);
         opponentMoveTextView = findViewById(R.id.other_user_turn_text_view);
         yourMoveTextView = findViewById(R.id.user_turn_text_view);
+        outcomeTextView = findViewById(R.id.outcome_text_view);
+        turnsRecyclerView = findViewById(R.id.turns_recycler_view);
+
+        Bundle bundle = getIntent().getExtras();
+
+        roomId = bundle.getString("roomId");
+
+        if ((boolean) bundle.get("server")) {
+            server = true;
+            playerPlayed = "serverPlayed";
+            setUpServer();
+        } else {
+            server = false;
+            playerPlayed = "opponentPlayed";
+        }
+
+        addRoomListener();  // non server only listens
+
+        turnsRecyclerView.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
 
         rockButton.setOnClickListener(clickHandler());
         paperButton.setOnClickListener(clickHandler());
         scissorButton.setOnClickListener(clickHandler());
     }
 
-    private View.OnClickListener clickHandler() {
-        return new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (view == rockButton) {
-                    userMove = "rock";
-                } else if (view == paperButton) {
-                    userMove = "paper";
-                } else if (view == scissorButton) {
-                    userMove = "scissor";
-                }
-
-                userPlayed = true;
-
-                rockButton.setClickable(false);
-                paperButton.setClickable(false);
-                scissorButton.setClickable(false);
-
-                yourMoveTextView.setText(userMove);
-
-                updateWithUserTurn(userMove);
-            }
-        };
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        addGameStateListener();
-    }
-
-    private void addGameStateListener() {
-        if (roomId != null) {
+    private void setUpServer() {
+        if (server) {
+            Log.d(TAG, "setUpServer: SET UP BY " + Build.MANUFACTURER + " " + Build.MODEL);
+          
             db.collection("rooms")
                     .document(roomId)
 
                     .addSnapshotListener(new EventListener<DocumentSnapshot>() {
                         @Override
                         public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                            prevCurrentUserScore = (Long) documentSnapshot.get(currentUsername + "Score");
-                            prevOtherUserScore = (Long) documentSnapshot.get(opponentUsername + "Score");
+                            if ((boolean) documentSnapshot.get("serverPlayed") && (boolean) documentSnapshot.get("opponentPlayed")) {
+                                // both have played
+                                String serverMove = (String) documentSnapshot.get("serverPlayedMove");
+                                String opponentMove = (String) documentSnapshot.get("opponentPlayedMove");
 
-                            if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(0))) {
-                                gameState = 0L;
-
-                                askUserToPlayTurn();
-                            } else if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(1))) {
-                                gameState = 1L;
-
-                                if (userPlayed == false) {
-                                    updateForOtherUserPlayed();
-
-                                    opponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");  // saving to use for score calculation
-                                } else {
-                                    waitForOtherUserTurn(documentSnapshot.get(getCurrentUsername() + "Turn"));
-
-                                    // presently, no update turn feature
+                                HashMap<String, Object> updateMap = new HashMap<>();
+                                if (!serverMove.equals(opponentMove)) {
+                                    if (isServerWin(serverMove, opponentMove)) {
+                                        updateMap.put("serverScore", (Long) documentSnapshot.get("serverScore") + 1L);
+                                    } else {
+                                        updateMap.put("opponentScore", (Long) documentSnapshot.get("opponentScore") + 1L);
+                                    }
                                 }
-                            } else if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(2))) {
-                                gameState = 2L;
 
-                                opponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");
-                                calculateScores();
-                                updateForRoundFinish();
+                                HashMap<String, Object> turnHashMap = new HashMap<>();
+                                turnHashMap.put("serverMove", serverMove);
+                                turnHashMap.put("opponentMove", opponentMove);
+                                turnHashMap.put("isServerWin", isServerWin(serverMove, opponentMove));
+                                turnHashMap.put("serverScore", documentSnapshot.get("serverScore"));
+                                turnHashMap.put("opponentScore", documentSnapshot.get("opponentScore"));
+
+                                ArrayList<HashMap<String, Object>> turns =
+                                        (ArrayList<HashMap<String, Object>>) documentSnapshot.get("turns");
+
+                                turns.add(turnHashMap);
+
+                                updateMap.put("serverPlayed", false);
+                                updateMap.put("opponentPlayed", false);
+                                updateMap.put("turns", turns);
+
+                                db.collection("rooms")
+                                        .document(roomId)
+
+                                        .update(updateMap);
                             }
                         }
                     });
         }
     }
 
-    private void updateForRoundFinish() {
-        // pass 
+    private boolean isServerWin(String serverMove, String opponentMove) {
+        return serverMove.equals("Paper") && opponentMove.equals("Rock") ||
+                serverMove.equals("Rock") && opponentMove.equals("Scissor") ||
+                serverMove.equals("Scissor") && opponentMove.equals("Paper");
     }
 
-    private void calculateScores() {
+    private void addRoomListener() {  // client side
         db.collection("rooms")
                 .document(roomId)
 
-                .get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                .addSnapshotListener(new EventListener<DocumentSnapshot>() {
                     @Override
-                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        String getUserMove = (String) documentSnapshot.get(currentUsername + "Turn");
-                        String getOpponentMove = (String) documentSnapshot.get(opponentUsername + "Turn");
-
-                        boolean currentUserWins = false;
-                        if (getUserMove.equals(getOpponentMove)) {
-                            currentUserWins = Boolean.parseBoolean(null);
-                        } else if (getUserMove.equals("rock") && getOpponentMove.equals("scissor")) {
-                            currentUserWins = true;
-                        } else if (getUserMove.equals("paper") && getOpponentMove.equals("rock")) {
-                            currentUserWins = true;
-                        } else if (getUserMove.equals("scissor") && getOpponentMove.equals("paper")) {
-                            currentUserWins = true;
+                    public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                        if (server && (boolean) documentSnapshot.get("opponentPlayed")) {
+                            updateForOtherUserPlayed((String) documentSnapshot.get("opponentPlayedMove"));
+                        } else if (!server && (boolean) documentSnapshot.get("serverPlayed")) {
+                            updateForOtherUserPlayed((String) documentSnapshot.get("serverPlayedMove"));
                         }
 
-                        if (currentUserWins == Boolean.parseBoolean(null)) {
+                        if (documentSnapshot.exists()) {
+                            updateScores(
+                                    (Long) documentSnapshot.get("serverScore"),
+                                    (Long) documentSnapshot.get("opponentScore"),
+                                    (String) documentSnapshot.get("serverUsername"),
+                                    (String) documentSnapshot.get("opponentUsername")
+                            );
 
-                        }
-                        if (currentUserWins) {
-                            HashMap<String, Object> map = new HashMap<>();
-                            map.put("gameState", 0);
-                            map.put(currentUsername + "Score", prevCurrentUserScore + 1);
-                            map.put(opponentUsername + "Score", prevOtherUserScore);
-
-                            prevCurrentUserScore += 1;
-                            currentUserWins = false;
-
-                            Log.d(TAG, "onSuccess: I WON: Scores: me, other" + prevCurrentUserScore + " " + prevOtherUserScore);
-
-                            db.collection("rooms")
-                                    .document(roomId)
-
-                                    .update(map);
-                        } else {
-                            HashMap<String, Object> map = new HashMap<>();
-                            map.put("gameState", 0);
-                            map.put(opponentUsername + "Score", prevOtherUserScore + 1);
-                            map.put(currentUsername + "Score", prevCurrentUserScore);
-
-                            prevOtherUserScore += 1;
-                            currentUserWins = false;
-
-                            Log.d(TAG, "onSuccess: I LOST: Scores: me, other" + prevCurrentUserScore + " " + prevOtherUserScore);
-
-                            db.collection("rooms")
-                                    .document(roomId)
-
-                                    .update(map);
+                            updateTurnsList((ArrayList<HashMap<String, Object>>) documentSnapshot.get("turns"));
                         }
 
-                        String s = currentUsername + ": " + prevCurrentUserScore + ", " + opponentUsername + ": " + prevOtherUserScore;
-                        scoreTextView.setText(s);
-
-                        updateForRoundFinish();
+                        if (!((boolean) documentSnapshot.get("serverPlayed") || (boolean) documentSnapshot.get("opponentPlayed"))) {
+                            // both haven't played
+                            resetForNextRound(
+                                    (String) documentSnapshot.get("serverPlayedMove"),
+                                    (String) documentSnapshot.get("opponentPlayedMove"),
+                                    (String) documentSnapshot.get("serverUsername"),
+                                    (String) documentSnapshot.get("opponentUsername")
+                            );
+                        }
                     }
                 });
-//        boolean currentUserWins = false;
-//        if (userMove.equals(opponentMove)) {
-//            currentUserWins = false;
-//        } else if (userMove.equals("rock") && opponentMove.equals("scissor")) {
-//            currentUserWins = true;
-//        } else if (userMove.equals("paper") && opponentMove.equals("rock")) {
-//            currentUserWins = true;
-//        } else if (userMove.equals("scissor") && opponentMove.equals("paper")) {
-//            currentUserWins = true;
-//        }
-//
-//        if (currentUserWins) {
-//            HashMap<String, Object> map = new HashMap<>();
-//            map.put("gameState", 0);
-//            map.put(currentUsername + "Score", prevCurrentUserScore + 1);
-//            prevCurrentUserScore += 1;
-//
-//            db.collection("rooms")
-//                    .document(roomId)
-//
-//                    .update(map);
-//        } else {
-//            HashMap<String, Object> map = new HashMap<>();
-//            map.put("gameState", 0);
-//            map.put(opponentUsername + "Score", prevOtherUserScore + 1);
-//            prevOtherUserScore += 1;
-//
-//            db.collection("rooms")
-//                    .document(roomId)
-//
-//                    .update(map);
-//        }
-//
-//        scoreTextView.setText(currentUsername + ": " + prevCurrentUserScore + ", " + opponentUsername + ": " + prevOtherUserScore);
     }
 
-    private void waitForOtherUserTurn(Object move) {
-        yourMoveTextView.setText("Your Turn: " + move);
+    private void updateTurnsList(ArrayList<HashMap<String, Object>> turns) {
+        TurnsRecyclerViewAdapter turnsRecyclerViewAdapter = new TurnsRecyclerViewAdapter(turns, server);
 
-        // set loading screen maybe
+        turnsRecyclerView.setAdapter(turnsRecyclerViewAdapter);
     }
 
-    
-
-    private void updateForOtherUserPlayed() {
-        opponentMoveTextView.setText("Opponent has played");
-
-        // can only think of this happening till now
-    }
-
-    private void askUserToPlayTurn() {
-        yourMoveTextView.setText("Play your Move");
+    private void resetForNextRound(String serverPlayedMove, String opponentPlayedMove, String serverUsername, String opponentUsername) {
+        if (serverPlayedMove.equals(opponentPlayedMove)) {
+            if (serverPlayedMove.equals("")) {
+                outcomeTextView.setText("");
+            } else {
+                outcomeTextView.setText("It's a draw!");
+            }
+        } else {
+            if (server) {
+                outcomeTextView.setText(opponentUsername + " chose " + opponentPlayedMove);
+            } else {
+                outcomeTextView.setText(serverUsername + " chose " + serverPlayedMove);
+            }
+        }
 
         rockButton.setClickable(true);
         paperButton.setClickable(true);
         scissorButton.setClickable(true);
+
+        yourMoveTextView.setText("Play your move");
+        opponentMoveTextView.setText("Opponent is yet to play");
     }
 
-    private void updateWithUserTurn(final String move) {
+    private void updateScores(Long serverScore, Long opponentScore, String serverUsername, String opponentUsername) {
+        Log.d(TAG, "updateScores: SCORE UPDATEEEE");
+
+        if (server) {  // only to ensure that the current player's name is first
+            scoreTextView.setText(serverUsername + ": " + serverScore + ", " + opponentUsername + ": " + opponentScore);
+        } else {
+            scoreTextView.setText(opponentUsername + ": " + opponentScore + ", " + serverUsername + ": " + serverScore);
+        }
+    }
+
+    private void updateForOtherUserPlayed(String move) {
+        opponentMoveTextView.setText("Opponent has played");
+    }
+
+    private View.OnClickListener clickHandler() {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String userMove = null;
+                if (view == rockButton) {
+                    userMove = "Rock";
+                } else if (view == paperButton) {
+                    userMove = "Paper";
+                } else if (view == scissorButton) {
+                    userMove = "Scissor";
+                }
+
+                updateWithUserTurn(userMove);
+            }
+        };
+    }
+
+    private void updateWithUserTurn(String userMove) {
+        rockButton.setClickable(false);
+        paperButton.setClickable(false);
+        scissorButton.setClickable(false);
+
+        userMove = String.valueOf(userMove.charAt(0)).toUpperCase() + userMove.substring(1);
+
+        yourMoveTextView.setText(userMove);
+
+        HashMap<String, Object> updateMap = new HashMap<>();
+        updateMap.put(playerPlayed + "Move", userMove);
+        updateMap.put(playerPlayed, true);
+
         db.collection("rooms")
                 .document(roomId)
-                .get()
 
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                    @Override
-                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(1))) {
-                            HashMap<String, Object> map = new HashMap<>();
-                            map.put("gameState", 2);
-                            map.put(getCurrentUsername() + "Turn", move);
-
-                            db.collection("rooms")
-                                    .document(roomId)
-
-                                    .update(map);
-                        } else if ((documentSnapshot.get("gameState")).toString().equals(String.valueOf(0))) {
-                            HashMap<String, Object> map = new HashMap<>();
-                            map.put("gameState", 1);
-                            map.put(getCurrentUsername() + "Turn", move);
-
-                            db.collection("rooms")
-                                    .document(roomId)
-
-                                    .update(map);
-                        }
-                    }
-                });
-
-        HashMap<String, Object> map = new HashMap<>();
-        map.put("gameState", 1);
-        map.put(getCurrentUsername() + "Turn", move);
-
-        db.collection("rooms")
-                .document(roomId)
-
-                .update(map);
+                .update(updateMap);
     }
 
     private String getCurrentUsername() {
@@ -307,3 +255,5 @@ public class GameActivity extends AppCompatActivity {
         return currentUser.getEmail().split("@")[0];
     }
 }
+
+// basically the server and opponent act as player 1 and player 2. check is done at client side.

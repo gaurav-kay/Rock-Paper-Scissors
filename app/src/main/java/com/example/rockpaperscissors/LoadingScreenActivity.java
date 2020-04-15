@@ -63,6 +63,7 @@ public class LoadingScreenActivity extends AppCompatActivity {
                         if ((boolean) documentSnapshot.get("isFull")) {
                             Intent newActivityIntent = new Intent(LoadingScreenActivity.this, GameActivity.class);
                             newActivityIntent.putExtra("roomId", (String) bundle.get("roomId"));
+                            newActivityIntent.putExtra("server", true);
                             newActivityIntent.putExtra("hostUsername", (String) bundle.get("hostUsername"));
                             newActivityIntent.putExtra("opponentUsername", (String) bundle.get("opponentUsername"));
 
